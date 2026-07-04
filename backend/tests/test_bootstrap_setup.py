@@ -382,6 +382,37 @@ def test_rollback_preflight_requires_readable_backups_before_mutating(tmp_path: 
     assert existing_agents.read_text(encoding="utf-8") == render_agents_md("Demo Project")
 
 
+def test_rollback_preflight_requires_backup_integrity_before_mutating(tmp_path: Path) -> None:
+    project_dir = (tmp_path / "demo-project").resolve()
+    project_dir.mkdir()
+    existing_agents = project_dir / "AGENTS.md"
+    existing_agents.write_text("# Existing\n", encoding="utf-8")
+
+    plan = build_setup_plan(project_dir, project_name="Demo Project")
+    apply_setup(
+        plan,
+        decisions={
+            "agentpm.yaml": "create",
+            "AGENTS.md": "update",
+            "CODEX.md": "create",
+        },
+    )
+
+    manifest_path = project_dir / ".agentpm" / "setup-manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    backup_path = Path(manifest["modified_file_details"][0]["backup_path"])
+    backup_path.write_text("# Tampered backup\n", encoding="utf-8")
+
+    rollback_result = rollback_setup(project_dir)
+
+    assert rollback_result.warnings == ["Backup for AGENTS.md failed integrity validation; rollback skipped."]
+    assert rollback_result.deleted_files == []
+    assert rollback_result.restored_files == []
+    assert (project_dir / "agentpm.yaml").exists()
+    assert (project_dir / "CODEX.md").exists()
+    assert existing_agents.read_text(encoding="utf-8") == render_agents_md("Demo Project")
+
+
 @pytest.mark.parametrize(
     ("decisions", "message"),
     [

@@ -262,6 +262,9 @@ def rollback_setup(project_path: Path) -> RollbackResult:
         except (OSError, UnicodeError):
             warnings.append(f"Backup for {target.name} is missing or unreadable; rollback skipped.")
             continue
+        if _sha256_text(backup_content) != entry["original_sha256"]:
+            warnings.append(f"Backup for {target.name} failed integrity validation; rollback skipped.")
+            continue
 
         modified_operations.append(
             ModifiedRollbackOperation(
