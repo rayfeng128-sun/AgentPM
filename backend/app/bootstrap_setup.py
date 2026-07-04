@@ -105,6 +105,14 @@ def _is_within(path: Path, root: Path) -> bool:
         return False
 
 
+def _managed_target_paths(project_path: Path) -> set[Path]:
+    return {
+        project_path / "agentpm.yaml",
+        project_path / "AGENTS.md",
+        project_path / "CODEX.md",
+    }
+
+
 def build_setup_plan(project_path: Path, project_name: str | None = None) -> SetupPlan:
     resolved = project_path.expanduser().resolve()
     if not resolved.exists() or not resolved.is_dir():
@@ -198,6 +206,7 @@ def rollback_setup(project_path: Path) -> RollbackResult:
     resolved = project_path.expanduser().resolve()
     manifest_path = resolved / ".agentpm" / "setup-manifest.json"
     backup_root = resolved / ".agentpm" / "backups"
+    managed_targets = _managed_target_paths(resolved)
     manifest: dict[str, Any] = json.loads(manifest_path.read_text(encoding="utf-8"))
 
     deleted_files: list[Path] = []
@@ -212,6 +221,9 @@ def rollback_setup(project_path: Path) -> RollbackResult:
             continue
         if not _is_within(target, resolved):
             warnings.append(f"Unsafe rollback target path for {target.name}; rollback skipped.")
+            continue
+        if target not in managed_targets:
+            warnings.append(f"Unmanaged rollback target path for {target.name}; rollback skipped.")
             continue
         if not target.exists():
             warnings.append(f"{target.name} missing during rollback; rollback skipped it.")
@@ -229,6 +241,9 @@ def rollback_setup(project_path: Path) -> RollbackResult:
         backup_path = _resolve_manifest_path(entry["backup_path"])
         if not _is_within(target, resolved):
             warnings.append(f"Unsafe rollback target path for {target.name}; rollback skipped.")
+            continue
+        if target not in managed_targets:
+            warnings.append(f"Unmanaged rollback target path for {target.name}; rollback skipped.")
             continue
         if not _is_within(backup_path, backup_root):
             warnings.append(f"Unsafe rollback backup path for {target.name}; rollback skipped.")

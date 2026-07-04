@@ -315,6 +315,42 @@ def test_rollback_rejects_unsafe_manifest_paths_before_mutating(tmp_path: Path) 
     assert (project_dir / "agentpm.yaml").exists()
 
 
+def test_rollback_rejects_unmanaged_project_file_paths_before_mutating(tmp_path: Path) -> None:
+    project_dir = (tmp_path / "demo-project").resolve()
+    project_dir.mkdir()
+    unrelated_file = project_dir / "README.md"
+    unrelated_file.write_text("notes\n", encoding="utf-8")
+
+    plan = build_setup_plan(project_dir, project_name="Demo Project")
+    apply_setup(
+        plan,
+        decisions={
+            "agentpm.yaml": "create",
+            "AGENTS.md": "skip",
+            "CODEX.md": "skip",
+        },
+    )
+
+    manifest_path = project_dir / ".agentpm" / "setup-manifest.json"
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    manifest["created_file_details"] = [
+        {
+            "path": str(unrelated_file),
+            "written_sha256": manifest["created_file_details"][0]["written_sha256"],
+        }
+    ]
+    manifest_path.write_text(json.dumps(manifest, indent=2) + "\n", encoding="utf-8")
+
+    rollback_result = rollback_setup(project_dir)
+
+    assert rollback_result.warnings == [
+        f"Unmanaged rollback target path for {unrelated_file.name}; rollback skipped."
+    ]
+    assert rollback_result.deleted_files == []
+    assert unrelated_file.read_text(encoding="utf-8") == "notes\n"
+    assert (project_dir / "agentpm.yaml").exists()
+
+
 def test_rollback_preflight_requires_readable_backups_before_mutating(tmp_path: Path) -> None:
     project_dir = (tmp_path / "demo-project").resolve()
     project_dir.mkdir()
