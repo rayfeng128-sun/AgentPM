@@ -201,3 +201,6 @@ def test_apply_setup_rejects_invalid_decisions(
 
     with pytest.raises(ValueError, match=message):
         apply_setup(plan, decisions=decisions)
+
+    assert not (project_dir / ".agentpm").exists()
+    assert not (project_dir / ".agentpm" / "setup-manifest.json").exists()

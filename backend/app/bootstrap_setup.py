@@ -63,7 +63,6 @@ def build_setup_plan(project_path: Path, project_name: str | None = None) -> Set
 def apply_setup(plan: SetupPlan, decisions: dict[str, str]) -> ApplyResult:
     created_files: list[Path] = []
     modified_files: list[Path] = []
-    plan.agentpm_dir.mkdir(exist_ok=True)
 
     writes = {
         "agentpm.yaml": render_agentpm_yaml(plan.project_name, plan.project_path),
@@ -80,12 +79,18 @@ def apply_setup(plan: SetupPlan, decisions: dict[str, str]) -> ApplyResult:
         if name not in planned_files:
             raise ValueError(f"Unsupported decision target: {name}")
 
-    for name, content in writes.items():
+    for name in writes:
         decision = decisions.get(name, "skip")
         planned_file = planned_files[name]
         _validate_decision(name, planned_file, decision)
+
+    plan.agentpm_dir.mkdir(exist_ok=True)
+
+    for name, content in writes.items():
+        decision = decisions.get(name, "skip")
         if decision == "skip":
             continue
+        planned_file = planned_files[name]
         target = planned_file.path
         if target.exists():
             modified_files.append(target)
