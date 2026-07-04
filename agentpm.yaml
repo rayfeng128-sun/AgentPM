@@ -1,0 +1,77 @@
+project:
+  name: AgentPM
+  path: /Users/ray/BaiduNetDisk/Project/AgentPM
+
+milestones:
+  - id: v0.1
+    title: Local project board MVP
+    tasks:
+      - id: backend-skeleton
+        title: Build FastAPI backend skeleton
+        status: done
+      - id: project-registry
+        title: Register and list local projects
+        status: done
+      - id: plan-parser
+        title: Parse agentpm.yaml and calculate progress
+        status: done
+      - id: codex-reader
+        title: Read Codex local sessions and token usage
+        status: done
+      - id: git-reader
+        title: Read project Git state
+        status: done
+      - id: briefing-api
+        title: Combine signals into project briefing API
+        status: done
+      - id: frontend-dashboard
+        title: Build briefing-first React dashboard
+        status: done
+      - id: verification
+        title: Verify backend, frontend, and PRD smoke checks
+        status: done
+  - id: v0.2
+    title: Task progress and token analytics
+    tasks:
+      - id: task-progress-token-analytics
+        title: Implement PRD v0.2 task progress and token analytics
+        status: done
+        assignee: Alex Chen
+        created_at: 2026-06-27
+        updated_at: 2026-06-30
+        session_note: Type mismatch in user model validation.
+        prd_refs:
+          - docs/product/02-task-progress-token-analytics-prd.md
+          - docs/product/03-task-progress-token-analytics-prototype.md
+        codex_sessions:
+          - 019f141c-7e6c-7d40-b43a-d2cbcd1e3b07
+        token_budget: 500000
+  - id: backlog
+    title: Product backlog
+    tasks:
+      - id: task-token-model-attribution
+        title: Show model used for each task token usage
+        status: done
+        assignee: John Parker
+        created_at: 2026-06-29
+        updated_at: 2026-06-30
+        session_note: Model attribution updated after reviewing linked Codex session metadata.
+        prd_refs:
+          - docs/product/02-task-progress-token-analytics-prd.md#story-2-inspect-task-token-consumption
+          - docs/product/03-task-progress-token-analytics-prototype.md#7-task-token-chart
+        codex_sessions:
+          - 019f141c-7e6c-7d40-b43a-d2cbcd1e3b07
+      - id: task-board-prd-details
+        title: Upgrade Task Board PRD details
+        status: done
+        assignee: Codex
+        created_at: 2026-07-05
+        updated_at: 2026-07-05
+        user_story: As a PM, I want complete task scope and PRD details in the Task Board so I can review delivery traceability without a separate drawer.
+        scope: Remove the Task Details drawer, show all PRD refs, add story/scope/acceptance/verification fields, and open local Markdown PRDs in a modal.
+        acceptance_criteria: Task Board rows show all refs and four delivery metadata fields, local Markdown refs open an in-page PRD modal, and unsafe PRD paths are blocked.
+        verification_method: cd backend && ./.venv/bin/python -m pytest; cd frontend && npm run build
+        prd_refs:
+          - docs/product/02-task-progress-token-analytics-prd.md#story-5-trace-tasks-back-to-prds
+        codex_sessions: []
+        token_budget: 350000

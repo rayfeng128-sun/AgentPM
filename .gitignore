@@ -1,1 +1,10 @@
 .worktrees/
+.DS_Store
+.codegraph/
+.superpowers/
+backend/app/__pycache__/
+backend/tests/__pycache__/
+backend/codex_project_board_backend.egg-info/
+frontend/node_modules/
+frontend/dist/
+frontend/.test-dist/

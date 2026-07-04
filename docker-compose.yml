@@ -1,0 +1,27 @@
+services:
+  backend:
+    build:
+      context: ./backend
+    environment:
+      AGENTPM_BROWSE_ROOTS: /Users/ray/BaiduNetDisk/Project:/sample-project
+    ports:
+      - "8000:8000"
+    volumes:
+      - agentpm-data:/root/.agentpm
+      - /Users/ray/.codex:/root/.codex:ro
+      - /Users/ray/BaiduNetDisk/Project:/Users/ray/BaiduNetDisk/Project:ro
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ./frontend
+      args:
+        VITE_API_BASE: http://localhost:8000
+    ports:
+      - "18080:80"
+    depends_on:
+      - backend
+    restart: unless-stopped
+
+volumes:
+  agentpm-data:
