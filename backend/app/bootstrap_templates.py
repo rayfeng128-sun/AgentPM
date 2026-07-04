@@ -1,22 +1,34 @@
 from pathlib import Path
 
+import yaml
+
 
 def render_agentpm_yaml(project_name: str, project_path: Path) -> str:
-    return f"""project:
-  name: {project_name}
-  path: {project_path}
-
-milestones:
-  - id: setup
-    title: Initial Setup
-    tasks:
-      - id: define-scope
-        title: Define initial project scope
-        status: todo
-      - id: start-codex-work
-        title: Run Codex from the project root
-        status: todo
-"""
+    document = {
+        "project": {
+            "name": project_name,
+            "path": str(project_path),
+        },
+        "milestones": [
+            {
+                "id": "setup",
+                "title": "Initial Setup",
+                "tasks": [
+                    {
+                        "id": "define-scope",
+                        "title": "Define initial project scope",
+                        "status": "todo",
+                    },
+                    {
+                        "id": "start-codex-work",
+                        "title": "Run Codex from the project root",
+                        "status": "todo",
+                    },
+                ],
+            }
+        ],
+    }
+    return yaml.safe_dump(document, sort_keys=False)
 
 
 def render_agents_md(project_name: str) -> str:
@@ -34,6 +46,8 @@ def render_codex_md(project_name: str) -> str:
     return f"""# CODEX.md
 
 This repository is prepared for AgentPM.
+
+- Project: {project_name}
 
 ## Read First
 
