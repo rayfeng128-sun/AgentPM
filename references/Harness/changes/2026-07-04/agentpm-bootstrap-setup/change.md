@@ -22,7 +22,6 @@ Implement Task 1 of the AgentPM bootstrap flow: the lightweight template-renderi
 
 ## Verification
 
-- Verified by reviewing the approved design against the user constraints.
-- Verified by checking that the design keeps setup metadata out of business-facing project structure by default.
+- Verified that the delivered Task 1 slice is limited to pure template rendering for `agentpm.yaml`, `AGENTS.md`, and `CODEX.md`, with no setup orchestration or rollback behavior added.
 - Verified TDD red state with `cd backend && ./.venv/bin/python -m pytest tests/test_bootstrap_setup.py -v`, which failed with `ModuleNotFoundError: No module named 'app.bootstrap_templates'`.
 - Verified green state with `cd backend && ./.venv/bin/python -m pytest tests/test_bootstrap_setup.py -v`, which passed with `3 passed`.
