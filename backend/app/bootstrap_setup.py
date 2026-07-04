@@ -29,6 +29,18 @@ class ApplyResult:
     modified_files: list[Path]
 
 
+def _validate_decision(name: str, planned_file: PlannedFile, decision: str) -> None:
+    allowed_decisions = {"skip", "create", "update"}
+    if decision not in allowed_decisions:
+        raise ValueError(f"Unsupported decision for {name}: {decision}")
+
+    allowed_by_state = {"skip", "create"} if planned_file.action == "create" else {"skip", "update"}
+    if decision not in allowed_by_state:
+        raise ValueError(
+            f"Incompatible decision for {name}: {decision} is not allowed when action is {planned_file.action}"
+        )
+
+
 def _planned_file(path: Path) -> PlannedFile:
     return PlannedFile(path=path, action="prompt" if path.exists() else "create")
 
@@ -58,17 +70,23 @@ def apply_setup(plan: SetupPlan, decisions: dict[str, str]) -> ApplyResult:
         "AGENTS.md": render_agents_md(plan.project_name),
         "CODEX.md": render_codex_md(plan.project_name),
     }
-    targets = {
-        "agentpm.yaml": plan.agentpm_yaml.path,
-        "AGENTS.md": plan.agents_md.path,
-        "CODEX.md": plan.codex_md.path,
+    planned_files = {
+        "agentpm.yaml": plan.agentpm_yaml,
+        "AGENTS.md": plan.agents_md,
+        "CODEX.md": plan.codex_md,
     }
+
+    for name in decisions:
+        if name not in planned_files:
+            raise ValueError(f"Unsupported decision target: {name}")
 
     for name, content in writes.items():
         decision = decisions.get(name, "skip")
-        target = targets[name]
+        planned_file = planned_files[name]
+        _validate_decision(name, planned_file, decision)
         if decision == "skip":
             continue
+        target = planned_file.path
         if target.exists():
             modified_files.append(target)
         else:

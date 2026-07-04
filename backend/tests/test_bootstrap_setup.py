@@ -1,5 +1,7 @@
+import json
 from pathlib import Path
 
+import pytest
 import yaml
 
 from app.bootstrap_setup import apply_setup, build_setup_plan
@@ -118,3 +120,84 @@ def test_apply_setup_creates_only_approved_files(tmp_path: Path) -> None:
     assert (project_dir / "agentpm.yaml").exists()
     assert (project_dir / "CODEX.md").exists()
     assert (project_dir / "AGENTS.md").read_text(encoding="utf-8") == "# Existing\n"
+
+
+def test_apply_setup_updates_existing_file_only_with_explicit_update(tmp_path: Path) -> None:
+    project_dir = (tmp_path / "demo-project").resolve()
+    project_dir.mkdir()
+    (project_dir / "AGENTS.md").write_text("# Existing\n", encoding="utf-8")
+
+    plan = build_setup_plan(project_dir, project_name="Demo Project")
+    result = apply_setup(
+        plan,
+        decisions={
+            "agentpm.yaml": "create",
+            "AGENTS.md": "update",
+            "CODEX.md": "skip",
+        },
+    )
+
+    assert result.created_files == [
+        project_dir / ".agentpm" / "setup-manifest.json",
+        project_dir / "agentpm.yaml",
+    ]
+    assert result.modified_files == [project_dir / "AGENTS.md"]
+    assert (project_dir / "AGENTS.md").read_text(encoding="utf-8") == render_agents_md("Demo Project")
+
+
+def test_apply_setup_writes_manifest_with_created_and_modified_files(tmp_path: Path) -> None:
+    project_dir = (tmp_path / "demo-project").resolve()
+    project_dir.mkdir()
+    (project_dir / "AGENTS.md").write_text("# Existing\n", encoding="utf-8")
+
+    plan = build_setup_plan(project_dir, project_name="Demo Project")
+    apply_setup(
+        plan,
+        decisions={
+            "agentpm.yaml": "create",
+            "AGENTS.md": "update",
+            "CODEX.md": "skip",
+        },
+    )
+
+    manifest = json.loads((project_dir / ".agentpm" / "setup-manifest.json").read_text(encoding="utf-8"))
+
+    assert manifest == {
+        "project_path": str(project_dir),
+        "created_files": [str(project_dir / "agentpm.yaml")],
+        "modified_files": [str(project_dir / "AGENTS.md")],
+    }
+
+
+@pytest.mark.parametrize(
+    ("decisions", "message"),
+    [
+        (
+            {
+                "agentpm.yaml": "overwrite",
+                "AGENTS.md": "skip",
+                "CODEX.md": "skip",
+            },
+            "Unsupported decision",
+        ),
+        (
+            {
+                "agentpm.yaml": "skip",
+                "AGENTS.md": "create",
+                "CODEX.md": "skip",
+            },
+            "Incompatible decision",
+        ),
+    ],
+)
+def test_apply_setup_rejects_invalid_decisions(
+    tmp_path: Path, decisions: dict[str, str], message: str
+) -> None:
+    project_dir = (tmp_path / "demo-project").resolve()
+    project_dir.mkdir()
+    (project_dir / "AGENTS.md").write_text("# Existing\n", encoding="utf-8")
+
+    plan = build_setup_plan(project_dir, project_name="Demo Project")
+
+    with pytest.raises(ValueError, match=message):
+        apply_setup(plan, decisions=decisions)
