@@ -53,6 +53,18 @@ class ModifiedFileManifestEntry:
     written_sha256: str
 
 
+@dataclass(frozen=True)
+class CreatedRollbackOperation:
+    target: Path
+
+
+@dataclass(frozen=True)
+class ModifiedRollbackOperation:
+    target: Path
+    backup_path: Path
+    backup_content: str
+
+
 def _validate_decision(name: str, planned_file: PlannedFile, decision: str) -> None:
     allowed_decisions = {"skip", "create", "update"}
     if decision not in allowed_decisions:
@@ -79,6 +91,18 @@ def _backup_file(target: Path, backup_dir: Path, run_id: str) -> tuple[Path, str
     backup_path = backup_dir / f"{target.name}.{run_id}.bak"
     backup_path.write_text(content, encoding="utf-8")
     return backup_path, _sha256_text(content)
+
+
+def _resolve_manifest_path(path_value: str) -> Path:
+    return Path(path_value).expanduser().resolve(strict=False)
+
+
+def _is_within(path: Path, root: Path) -> bool:
+    try:
+        path.relative_to(root)
+        return True
+    except ValueError:
+        return False
 
 
 def build_setup_plan(project_path: Path, project_name: str | None = None) -> SetupPlan:
@@ -173,16 +197,22 @@ def apply_setup(plan: SetupPlan, decisions: dict[str, str]) -> ApplyResult:
 def rollback_setup(project_path: Path) -> RollbackResult:
     resolved = project_path.expanduser().resolve()
     manifest_path = resolved / ".agentpm" / "setup-manifest.json"
+    backup_root = resolved / ".agentpm" / "backups"
     manifest: dict[str, Any] = json.loads(manifest_path.read_text(encoding="utf-8"))
 
     deleted_files: list[Path] = []
     restored_files: list[Path] = []
     warnings: list[str] = []
+    created_operations: list[CreatedRollbackOperation] = []
+    modified_operations: list[ModifiedRollbackOperation] = []
 
     for entry in manifest.get("created_file_details", []):
-        target = Path(entry["path"])
+        target = _resolve_manifest_path(entry["path"])
         if target == manifest_path:
             continue
+        if not _is_within(target, resolved):
+            warnings.append(f"Unsafe rollback target path for {target.name}; rollback skipped.")
+            continue
         if not target.exists():
             warnings.append(f"{target.name} missing during rollback; rollback skipped it.")
             continue
@@ -192,12 +222,17 @@ def rollback_setup(project_path: Path) -> RollbackResult:
             warnings.append(f"{target.name} changed after setup; rollback skipped it.")
             continue
 
-        target.unlink()
-        deleted_files.append(target)
+        created_operations.append(CreatedRollbackOperation(target=target))
 
     for entry in manifest.get("modified_file_details", []):
-        target = Path(entry["path"])
-        backup_path = Path(entry["backup_path"])
+        target = _resolve_manifest_path(entry["path"])
+        backup_path = _resolve_manifest_path(entry["backup_path"])
+        if not _is_within(target, resolved):
+            warnings.append(f"Unsafe rollback target path for {target.name}; rollback skipped.")
+            continue
+        if not _is_within(backup_path, backup_root):
+            warnings.append(f"Unsafe rollback backup path for {target.name}; rollback skipped.")
+            continue
         if not target.exists():
             warnings.append(f"{target.name} missing during rollback; rollback skipped it.")
             continue
@@ -207,9 +242,35 @@ def rollback_setup(project_path: Path) -> RollbackResult:
             warnings.append(f"{target.name} changed after setup; rollback skipped it.")
             continue
 
-        target.write_text(backup_path.read_text(encoding="utf-8"), encoding="utf-8")
-        backup_path.unlink()
-        restored_files.append(target)
+        try:
+            backup_content = backup_path.read_text(encoding="utf-8")
+        except (OSError, UnicodeError):
+            warnings.append(f"Backup for {target.name} is missing or unreadable; rollback skipped.")
+            continue
+
+        modified_operations.append(
+            ModifiedRollbackOperation(
+                target=target,
+                backup_path=backup_path,
+                backup_content=backup_content,
+            )
+        )
+
+    if warnings:
+        return RollbackResult(
+            deleted_files=[],
+            restored_files=[],
+            warnings=warnings,
+        )
+
+    for operation in created_operations:
+        operation.target.unlink()
+        deleted_files.append(operation.target)
+
+    for operation in modified_operations:
+        operation.target.write_text(operation.backup_content, encoding="utf-8")
+        operation.backup_path.unlink()
+        restored_files.append(operation.target)
 
     return RollbackResult(
         deleted_files=deleted_files,
