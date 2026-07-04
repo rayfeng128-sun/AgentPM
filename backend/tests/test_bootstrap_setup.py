@@ -2,6 +2,7 @@ from pathlib import Path
 
 import yaml
 
+from app.bootstrap_setup import apply_setup, build_setup_plan
 from app.bootstrap_templates import render_agentpm_yaml, render_agents_md, render_codex_md
 
 
@@ -66,3 +67,54 @@ def test_render_codex_md_stays_lightweight() -> None:
     assert "AgentPM" in rendered
     assert "agentpm.yaml" in rendered
     assert "Demo Project" in rendered
+
+def test_build_setup_plan_marks_missing_files_for_creation(tmp_path: Path) -> None:
+    project_dir = (tmp_path / "demo-project").resolve()
+    project_dir.mkdir()
+
+    plan = build_setup_plan(project_dir, project_name="Demo Project")
+
+    assert plan.project_path == project_dir
+    assert plan.project_name == "Demo Project"
+    assert plan.agentpm_dir.name == ".agentpm"
+    assert plan.agentpm_yaml.action == "create"
+    assert plan.agents_md.action == "create"
+    assert plan.codex_md.action == "create"
+
+
+def test_build_setup_plan_marks_existing_files_for_prompt(tmp_path: Path) -> None:
+    project_dir = (tmp_path / "demo-project").resolve()
+    project_dir.mkdir()
+    (project_dir / "agentpm.yaml").write_text("project: {}\n", encoding="utf-8")
+    (project_dir / "AGENTS.md").write_text("# AGENTS.md\n", encoding="utf-8")
+
+    plan = build_setup_plan(project_dir, project_name="Demo Project")
+
+    assert plan.agentpm_yaml.action == "prompt"
+    assert plan.agents_md.action == "prompt"
+    assert plan.codex_md.action == "create"
+
+
+def test_apply_setup_creates_only_approved_files(tmp_path: Path) -> None:
+    project_dir = (tmp_path / "demo-project").resolve()
+    project_dir.mkdir()
+    (project_dir / "AGENTS.md").write_text("# Existing\n", encoding="utf-8")
+
+    plan = build_setup_plan(project_dir, project_name="Demo Project")
+    result = apply_setup(
+        plan,
+        decisions={
+            "agentpm.yaml": "create",
+            "AGENTS.md": "skip",
+            "CODEX.md": "create",
+        },
+    )
+
+    assert result.created_files == [
+        project_dir / ".agentpm" / "setup-manifest.json",
+        project_dir / "agentpm.yaml",
+        project_dir / "CODEX.md",
+    ]
+    assert (project_dir / "agentpm.yaml").exists()
+    assert (project_dir / "CODEX.md").exists()
+    assert (project_dir / "AGENTS.md").read_text(encoding="utf-8") == "# Existing\n"
