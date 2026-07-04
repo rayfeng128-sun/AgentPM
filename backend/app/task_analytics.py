@@ -18,9 +18,11 @@ from .models import (
     TaskTokenUsageResponse,
 )
 from .plan_parser import build_plan_alerts, calculate_progress
+from .prd_reader import enrich_plan_with_prd_details
 
 
-def build_task_plan(project_id: str, plan: PlanLoadResult) -> TaskPlanResponse:
+def build_task_plan(project_id: str, plan: PlanLoadResult, project_path: str) -> TaskPlanResponse:
+    enrich_plan_with_prd_details(project_path, plan)
     return TaskPlanResponse(
         project_id=project_id,
         progress=calculate_progress(plan),

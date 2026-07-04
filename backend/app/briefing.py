@@ -17,7 +17,7 @@ def build_briefing(project: Project, codex_db_path: Path = DEFAULT_CODEX_STATE_D
     test = TestState(status="unknown", confidence="low")
     status = calculate_status(plan=plan, progress=progress, sessions=sessions, git=git, test=test)
     alerts = build_alerts(plan=plan, progress=progress, sessions=sessions, tokens=tokens, git=git, test=test)
-    task_plan = build_task_plan(project.id, plan)
+    task_plan = build_task_plan(project.id, plan, project.path)
     task_token_usage = build_task_token_usage(project.id, plan, project.path, codex_db_path)
     alerts.extend(task_plan.alerts)
     alerts.extend(task_token_usage.alerts)

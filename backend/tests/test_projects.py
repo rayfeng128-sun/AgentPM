@@ -159,3 +159,60 @@ def test_read_project_prd_rejects_path_traversal(tmp_path: Path) -> None:
     response = client.get(f"/api/projects/{created.json()['id']}/prd", params={"ref": "../secret.md"})
 
     assert response.status_code == 403
+
+
+def test_tasks_endpoint_derives_task_details_from_prd_refs(tmp_path: Path) -> None:
+    project_dir = tmp_path / "project"
+    prd_dir = project_dir / "docs" / "product"
+    prd_dir.mkdir(parents=True)
+    (project_dir / "agentpm.yaml").write_text(
+        """
+milestones:
+  - id: analytics
+    title: Analytics
+    tasks:
+      - id: traceability
+        title: Traceability task
+        status: doing
+        prd_refs:
+          - docs/product/02-demo-prd.md#story-5-trace-tasks-back-to-prds
+""",
+        encoding="utf-8",
+    )
+    (prd_dir / "02-demo-prd.md").write_text(
+        """
+# Demo PRD
+
+## 3. User Stories
+
+### Story 5: Trace Tasks Back to PRDs
+
+As a project manager reviewing delivery scope,
+in the context of multiple PRDs and implementation tasks,
+I want each task to show which PRD requirement it supports,
+so that I can verify coverage, identify unplanned work, and discuss scope changes with the team.
+
+Acceptance:
+
+- The task table shows the primary PRD association for each task.
+- Tasks without PRD association are visible and marked as unlinked scope.
+
+## 15. Verification Plan
+
+- Unit test plan parsing with `prd_refs`.
+- Frontend task table renders derived task metadata.
+""".strip()
+        + "\n",
+        encoding="utf-8",
+    )
+    client = client_with_db(tmp_path)
+    created = client.post("/api/projects", json={"name": "Demo", "path": str(project_dir)})
+
+    response = client.get(f"/api/projects/{created.json()['id']}/tasks")
+
+    assert response.status_code == 200
+    task = response.json()["milestones"][0]["tasks"][0]
+    assert task["user_story"].startswith("As a project manager reviewing delivery scope")
+    assert task["scope"] == "Trace Tasks Back to PRDs"
+    assert "The task table shows the primary PRD association" in task["acceptance_criteria"]
+    assert "Unit test plan parsing with `prd_refs`." in task["verification_method"]

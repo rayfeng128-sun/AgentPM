@@ -189,7 +189,7 @@ Fields:
 Rules:
 
 - Missing `prd_refs` is treated as an empty list.
-- Missing `user_story`, `scope`, `acceptance_criteria`, or `verification_method` is shown as `Not specified`.
+- Missing `user_story`, `scope`, `acceptance_criteria`, or `verification_method` should first attempt a best-effort fallback from associated local Markdown PRD content; if no structured value can be derived, the Task Board shows `Not specified`.
 - Missing `codex_sessions` is treated as an empty list.
 - Missing `token_budget` disables budget comparison for that task.
 - Unknown task statuses are treated as `todo` and produce a warning alert.
@@ -216,6 +216,7 @@ Rules:
 - A task with zero PRD references is valid but marked as `Unlinked PRD`.
 - Task Board rows should show all PRD references, not only the first reference.
 - Local Markdown PRD references should be clickable and open an in-page modal with the PRD content.
+- The first shipped modal experience should render readable Markdown structure for headings, paragraphs, lists, tables, links, and code blocks.
 - Requirement IDs or non-Markdown references should remain visible as plain reference chips.
 - The PRD modal only reads Markdown files inside the selected project root and should reject path traversal.
 - PRD associations are used for visibility and alerts only; they do not change completion percentage.

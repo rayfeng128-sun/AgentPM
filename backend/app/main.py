@@ -115,7 +115,7 @@ def api_project_briefing(project_id: str) -> BriefingResponse:
 @app.get("/api/projects/{project_id}/tasks", response_model=TaskPlanResponse)
 def api_project_tasks(project_id: str) -> TaskPlanResponse:
     project = api_get_project(project_id)
-    return build_task_plan(project.id, load_plan(project.path))
+    return build_task_plan(project.id, load_plan(project.path), project.path)
 
 
 @app.get("/api/projects/{project_id}/prd", response_model=PrdDocumentResponse)

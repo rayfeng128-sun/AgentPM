@@ -398,6 +398,12 @@ function fallbackText(value: string | null) {
   return value?.trim() || "Not specified";
 }
 
+function summarizeTaskDetail(value: string | null, limit = 140) {
+  const normalized = fallbackText(value).replace(/\s+/g, " ").trim();
+  if (normalized === "Not specified" || normalized.length <= limit) return normalized;
+  return `${normalized.slice(0, limit - 1).trimEnd()}...`;
+}
+
 function splitPrdRef(ref: string) {
   const [path, anchor] = ref.split("#", 2);
   return { path, anchor: anchor || null };
@@ -405,6 +411,124 @@ function splitPrdRef(ref: string) {
 
 function isLocalMarkdownPrdRef(ref: string) {
   return splitPrdRef(ref).path.endsWith(".md");
+}
+
+function escapeHtml(value: string) {
+  return value
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function renderInlineMarkdown(value: string) {
+  return escapeHtml(value)
+    .replace(/`([^`]+)`/g, "<code>$1</code>")
+    .replace(/\*\*([^*]+)\*\*/g, "<strong>$1</strong>")
+    .replace(/\[([^\]]+)\]\(([^)]+)\)/g, '<a href="$2" target="_blank" rel="noreferrer">$1</a>');
+}
+
+function isTableDivider(line: string) {
+  return /^\|?(?:\s*:?-{3,}:?\s*\|)+\s*:?-{3,}:?\s*\|?$/.test(line.trim());
+}
+
+function markdownToHtml(content: string) {
+  const lines = content.replace(/\r\n/g, "\n").split("\n");
+  const blocks: string[] = [];
+  let index = 0;
+
+  while (index < lines.length) {
+    const line = lines[index];
+    const trimmed = line.trim();
+
+    if (!trimmed) {
+      index += 1;
+      continue;
+    }
+
+    if (trimmed.startsWith("```")) {
+      const codeLines: string[] = [];
+      index += 1;
+      while (index < lines.length && !lines[index].trim().startsWith("```")) {
+        codeLines.push(lines[index]);
+        index += 1;
+      }
+      index += 1;
+      blocks.push(`<pre><code>${escapeHtml(codeLines.join("\n"))}</code></pre>`);
+      continue;
+    }
+
+    if (trimmed.startsWith("|") && index + 1 < lines.length && isTableDivider(lines[index + 1])) {
+      const tableLines = [line];
+      index += 2;
+      while (index < lines.length && lines[index].trim().startsWith("|")) {
+        tableLines.push(lines[index]);
+        index += 1;
+      }
+      const [header, ...rows] = tableLines.map((tableLine) =>
+        tableLine
+          .trim()
+          .replace(/^\|/, "")
+          .replace(/\|$/, "")
+          .split("|")
+          .map((cell) => cell.trim()),
+      );
+      const head = `<thead><tr>${header.map((cell) => `<th>${renderInlineMarkdown(cell)}</th>`).join("")}</tr></thead>`;
+      const body = rows.length
+        ? `<tbody>${rows
+            .map((row) => `<tr>${row.map((cell) => `<td>${renderInlineMarkdown(cell)}</td>`).join("")}</tr>`)
+            .join("")}</tbody>`
+        : "";
+      blocks.push(`<table>${head}${body}</table>`);
+      continue;
+    }
+
+    const headingMatch = trimmed.match(/^(#{1,6})\s+(.+)$/);
+    if (headingMatch) {
+      const level = headingMatch[1].length;
+      blocks.push(`<h${level}>${renderInlineMarkdown(headingMatch[2].trim())}</h${level}>`);
+      index += 1;
+      continue;
+    }
+
+    if (trimmed.startsWith("- ")) {
+      const items: string[] = [];
+      while (index < lines.length && lines[index].trim().startsWith("- ")) {
+        items.push(lines[index].trim().slice(2).trim());
+        index += 1;
+      }
+      blocks.push(`<ul>${items.map((item) => `<li>${renderInlineMarkdown(item)}</li>`).join("")}</ul>`);
+      continue;
+    }
+
+    if (/^\d+\.\s+/.test(trimmed)) {
+      const items: string[] = [];
+      while (index < lines.length && /^\d+\.\s+/.test(lines[index].trim())) {
+        items.push(lines[index].trim().replace(/^\d+\.\s+/, ""));
+        index += 1;
+      }
+      blocks.push(`<ol>${items.map((item) => `<li>${renderInlineMarkdown(item)}</li>`).join("")}</ol>`);
+      continue;
+    }
+
+    const paragraph: string[] = [];
+    while (
+      index < lines.length &&
+      lines[index].trim() &&
+      !lines[index].trim().startsWith("```") &&
+      !lines[index].trim().startsWith("|") &&
+      !lines[index].trim().startsWith("- ") &&
+      !/^\d+\.\s+/.test(lines[index].trim()) &&
+      !/^(#{1,6})\s+/.test(lines[index].trim())
+    ) {
+      paragraph.push(lines[index].trim());
+      index += 1;
+    }
+    blocks.push(`<p>${renderInlineMarkdown(paragraph.join(" "))}</p>`);
+  }
+
+  return blocks.join("");
 }
 
 function budgetState(task: TaskView | TaskTokenUsageItem) {
@@ -1467,10 +1591,18 @@ function TasksTable({
               <span className="pill danger">Unlinked PRD</span>
             )}
           </div>
-          <span className="task-detail-text">{fallbackText(task.user_story)}</span>
-          <span className="task-detail-text">{fallbackText(task.scope)}</span>
-          <span className="task-detail-text">{fallbackText(task.acceptance_criteria)}</span>
-          <span className="task-detail-text">{fallbackText(task.verification_method)}</span>
+          <span className="task-detail-text" title={fallbackText(task.user_story)}>
+            {summarizeTaskDetail(task.user_story, 132)}
+          </span>
+          <span className="task-detail-text" title={fallbackText(task.scope)}>
+            {summarizeTaskDetail(task.scope, 108)}
+          </span>
+          <span className="task-detail-text" title={fallbackText(task.acceptance_criteria)}>
+            {summarizeTaskDetail(task.acceptance_criteria, 132)}
+          </span>
+          <span className="task-detail-text" title={fallbackText(task.verification_method)}>
+            {summarizeTaskDetail(task.verification_method, 132)}
+          </span>
           <span className={`pill status ${statusTone(task.status)}`}>{task.status}</span>
           <span>{compactTokens(task.total_tokens)}</span>
           <span className={budgetState(task).startsWith("Over") ? "budget-alert" : ""}>{budgetState(task)}</span>
@@ -1522,11 +1654,16 @@ function PrdModal({
         ) : state.document?.unavailable ? (
           <EmptyPanel label="PRD content is unavailable for this reference." />
         ) : (
-          <pre className="prd-content">{state.document?.content}</pre>
+          <MarkdownContent content={state.document?.content ?? ""} />
         )}
       </section>
     </div>
   );
+}
+
+function MarkdownContent({ content }: { content: string }) {
+  const html = useMemo(() => markdownToHtml(content), [content]);
+  return <div className="prd-content markdown-content" dangerouslySetInnerHTML={{ __html: html }} />;
 }
 
 function Banner({ level, message }: { level: AlertLevel; message: string }) {
