@@ -1,3 +1,4 @@
+import subprocess
 from pathlib import Path
 
 from app.bootstrap_cli import main
@@ -14,6 +15,24 @@ def test_cli_dry_run_prints_planned_actions(tmp_path: Path, capsys) -> None:
     assert "agentpm.yaml: create" in output
     assert "AGENTS.md: create" in output
     assert "CODEX.md: create" in output
+
+
+def test_repo_launcher_runs_cli_dry_run(tmp_path: Path) -> None:
+    project_dir = (tmp_path / "demo-project").resolve()
+    project_dir.mkdir()
+    launcher = Path(__file__).resolve().parents[1] / "agentpm-bootstrap"
+
+    result = subprocess.run(
+        [str(launcher), "--target", str(project_dir), "--project-name", "Demo Project", "--dry-run"],
+        check=False,
+        capture_output=True,
+        text=True,
+    )
+
+    assert result.returncode == 0
+    assert "agentpm.yaml: create" in result.stdout
+    assert "AGENTS.md: create" in result.stdout
+    assert "CODEX.md: create" in result.stdout
 
 
 def test_cli_apply_respects_prompt_answers(tmp_path: Path, monkeypatch, capsys) -> None:

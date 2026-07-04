@@ -16,6 +16,8 @@ Implement the AgentPM bootstrap feature end to end: generate starter project fil
 - Validate decisions explicitly by rejecting unsupported values, rejecting state-incompatible combinations, and requiring `update` rather than `create` for prompted existing files.
 - Add `rollback_setup()` so bootstrap setup can safely delete managed created files, restore managed backups, and stop with warnings when user changes or unsafe paths are detected.
 - Add `backend/app/bootstrap_cli.py` plus the `agentpm-bootstrap` console script entry for dry-run, interactive apply, cancel-safe prompting, and rollback.
+- Add a repo-local `backend/agentpm-bootstrap` launcher so bootstrap remains usable even when the local editable install does not generate the console script wrapper.
+- Add starter `prd_refs` to the generated setup tasks in `agentpm.yaml` so fresh projects do not immediately surface unlinked-PRD attention warnings.
 - Document the implemented bootstrap command, created files, operational-state location, and rollback behavior in the project docs.
 
 ## Outputs
@@ -23,6 +25,7 @@ Implement the AgentPM bootstrap feature end to end: generate starter project fil
 - `backend/app/bootstrap_templates.py`
 - `backend/app/bootstrap_setup.py`
 - `backend/app/bootstrap_cli.py`
+- `backend/agentpm-bootstrap`
 - `backend/tests/test_bootstrap_setup.py`
 - `backend/tests/test_bootstrap_cli.py`
 - `backend/pyproject.toml`
@@ -38,4 +41,7 @@ Implement the AgentPM bootstrap feature end to end: generate starter project fil
 - Final targeted bootstrap verification used `cd backend && ./.venv/bin/python -m pytest tests/test_bootstrap_setup.py tests/test_bootstrap_cli.py -v`, which passed with `25 passed`.
 - Full backend verification used `cd backend && ./.venv/bin/python -m pytest`, which passed with `77 passed` and 4 warnings.
 - Editable-install smoke verification was attempted with `cd /Users/ray/BaiduNetDisk/Project/AgentPM && backend/.venv/bin/python -m pip install -e "./backend[test]"` and `--no-build-isolation`, but could not complete in this environment because the local repo venv does not contain `setuptools` or `wheel`, and outbound network access is restricted. The backend package now declares an explicit build system in `backend/pyproject.toml`, so the remaining blocker is the local environment rather than the bootstrap code path.
+- Launcher fallback verification used `cd backend && ./.venv/bin/python -m pytest tests/test_bootstrap_cli.py -q`, which first failed with `FileNotFoundError` before `backend/agentpm-bootstrap` existed, and then passed once the repo-local launcher was added.
+- Starter PRD-link verification used `cd /Users/ray/BaiduNetDisk/Project/AgentPM && backend/.venv/bin/python -m pytest backend/tests/test_bootstrap_setup.py -q`, which first failed because the generated bootstrap tasks had no `prd_refs`, and then passed after the template added the default `docs/product/01-project-prd.md` reference to both setup tasks.
+- Repo-local launcher smoke verification used `cd backend && ./agentpm-bootstrap --target /Users/ray/BaiduNetDisk/Project/AgentPM/backend/sample-project --dry-run`, which printed the planned `agentpm.yaml`, `AGENTS.md`, and `CODEX.md` actions through the same CLI path as the module entry point.
 - Documentation closure verification used `rg -n "agentpm-bootstrap|bootstrap-setup|2026-07-04-agentpm-bootstrap" README.md docs/README.md references/Harness/changes/2026-07-04/agentpm-bootstrap-setup/change.md`, which matched the README bootstrap commands, the docs index entries, and this consolidated change record with no stale bootstrap placeholders.

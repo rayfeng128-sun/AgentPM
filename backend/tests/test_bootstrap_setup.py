@@ -29,11 +29,13 @@ def test_render_agentpm_yaml_uses_project_name_and_absolute_path(tmp_path: Path)
                         "id": "define-scope",
                         "title": "Define initial project scope",
                         "status": "todo",
+                        "prd_refs": ["docs/product/01-project-prd.md"],
                     },
                     {
                         "id": "start-codex-work",
                         "title": "Run Codex from the project root",
                         "status": "todo",
+                        "prd_refs": ["docs/product/01-project-prd.md"],
                     },
                 ],
             }

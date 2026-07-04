@@ -1,0 +1,9 @@
+.DS_Store
+.git
+backend/.pytest_cache
+backend/.venv
+backend/codex_project_board_backend.egg-info
+frontend/dist
+frontend/node_modules
+__pycache__
+*.pyc

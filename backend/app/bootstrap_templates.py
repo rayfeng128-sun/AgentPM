@@ -18,11 +18,13 @@ def render_agentpm_yaml(project_name: str, project_path: Path) -> str:
                         "id": "define-scope",
                         "title": "Define initial project scope",
                         "status": "todo",
+                        "prd_refs": ["docs/product/01-project-prd.md"],
                     },
                     {
                         "id": "start-codex-work",
                         "title": "Run Codex from the project root",
                         "status": "todo",
+                        "prd_refs": ["docs/product/01-project-prd.md"],
                     },
                 ],
             }
