@@ -6,20 +6,17 @@
 
 ## Request
 
-Add a new AgentPM onboarding capability: a local script that helps a user prepare a Codex project for AgentPM with minimal pollution to the target project's business scenario, interactive handling of existing files, and practical rollback support.
+Implement Task 1 of the AgentPM bootstrap flow: the lightweight template-rendering layer that later setup logic will call.
 
 ## Scope
 
-- Define the v1 design for a path-based AgentPM bootstrap script.
-- Keep the target project's business-facing structure clean by isolating AgentPM operational state in `.agentpm/`.
-- Support creation of `agentpm.yaml` plus optional lightweight `AGENTS.md` and `CODEX.md`.
-- Require interactive decisions for existing files instead of silent overwrites.
-- Require rollback metadata and a reversible setup model.
+- Add a renderer for bootstrap `agentpm.yaml` content using the provided project name and absolute project path.
+- Add renderers for lightweight `AGENTS.md` and `CODEX.md` bootstrap content.
+- Cover the template renderers with focused test-first pytest coverage.
+- Do not add setup orchestration, CLI behavior, overwrite handling, or rollback logic in this task.
 
 ## Outputs
 
-- `docs/superpowers/specs/2026-07-04-agentpm-bootstrap-setup-design.md`
-- future implementation plan for the bootstrap script
 - `backend/app/bootstrap_templates.py`
 - `backend/tests/test_bootstrap_setup.py`
 
