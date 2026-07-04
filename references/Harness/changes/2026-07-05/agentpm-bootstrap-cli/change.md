@@ -6,14 +6,14 @@
 
 ## Request
 
-Implement Task 4 of the AgentPM bootstrap flow: add the CLI entry point with dry-run output, interactive prompt handling, rollback support, and the package script entry.
+Implement Task 4 of the AgentPM bootstrap flow: add the CLI entry point with dry-run output, interactive prompt handling, rollback support, and the package script entry. Follow up with a focused usability hardening pass for safe prompt aborts and visible apply/rollback results.
 
 ## Scope
 
 - Add `backend/app/bootstrap_cli.py` as a thin CLI wrapper over the existing bootstrap core plan/apply/rollback behavior.
-- Add focused pytest coverage for CLI dry-run, interactive apply, and rollback flows.
+- Add focused pytest coverage for CLI dry-run, interactive apply, prompt retry/cancel handling, interruption safety, and rollback flows.
 - Register the CLI as `agentpm-bootstrap` in `backend/pyproject.toml`.
-- Keep the change scoped to the backend bootstrap CLI surface; do not alter the underlying planning/apply/rollback semantics except for user-input mapping at the CLI boundary.
+- Keep the change scoped to the backend bootstrap CLI surface; do not alter the underlying planning/apply/rollback semantics except for user-input mapping and user-facing output at the CLI boundary.
 
 ## Outputs
 
@@ -24,4 +24,5 @@ Implement Task 4 of the AgentPM bootstrap flow: add the CLI entry point with dry
 ## Verification
 
 - Verified the red state with `cd backend && ./.venv/bin/python -m pytest tests/test_bootstrap_cli.py -v`, which failed with `ModuleNotFoundError: No module named 'app.bootstrap_cli'` before the CLI module existed.
-- Verified the delivered CLI slice with `cd backend && ./.venv/bin/python -m pytest tests/test_bootstrap_cli.py -v`, which now passes with `3 passed`.
+- Verified the usability hardening red state with `cd backend && ./.venv/bin/python -m pytest tests/test_bootstrap_cli.py -v`, which failed on missing apply/rollback output and missing cancel/interruption handling.
+- Verified the delivered CLI slice with `cd backend && ./.venv/bin/python -m pytest tests/test_bootstrap_cli.py -v`, which now passes with `6 passed`.

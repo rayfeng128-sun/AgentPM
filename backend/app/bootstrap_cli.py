@@ -6,6 +6,10 @@ from pathlib import Path
 from app.bootstrap_setup import PlannedFile, SetupPlan, apply_setup, build_setup_plan, rollback_setup
 
 
+class PromptCancelled(Exception):
+    pass
+
+
 def _build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="agentpm-bootstrap")
     parser.add_argument("--target", required=True, help="Path to the target project directory")
@@ -28,6 +32,8 @@ def _normalize_prompt_answer(answer: str, planned_file: PlannedFile) -> str | No
     normalized = answer.strip().lower()
     if not normalized:
         return None
+    if normalized == "cancel":
+        return "cancel"
     if normalized == "skip":
         return "skip"
     if planned_file.action == "create" and normalized == "create":
@@ -44,7 +50,14 @@ def _prompt_for_decision(name: str, planned_file: PlannedFile) -> str:
         prompt = f"{name} already exists. Choose [update/skip] (or 'create' to overwrite): "
 
     while True:
-        decision = _normalize_prompt_answer(input(prompt), planned_file)
+        try:
+            answer = input(prompt)
+        except (EOFError, KeyboardInterrupt) as exc:
+            raise PromptCancelled() from exc
+
+        decision = _normalize_prompt_answer(answer, planned_file)
+        if decision == "cancel":
+            raise PromptCancelled()
         if decision is not None:
             return decision
         print("Please answer with one of the supported actions.")
@@ -59,11 +72,20 @@ def _run_dry_run(target: Path, project_name: str | None) -> int:
 
 def _run_apply(target: Path, project_name: str | None) -> int:
     plan = build_setup_plan(target, project_name)
-    decisions = {
-        name: _prompt_for_decision(name, planned_file)
-        for name, planned_file in _plan_files(plan)
-    }
-    apply_setup(plan, decisions)
+    try:
+        decisions = {
+            name: _prompt_for_decision(name, planned_file)
+            for name, planned_file in _plan_files(plan)
+        }
+    except PromptCancelled:
+        print("Cancelled. No files were changed.")
+        return 1
+
+    result = apply_setup(plan, decisions)
+    for path in result.created_files:
+        print(f"Created: {path}")
+    for path in result.modified_files:
+        print(f"Modified: {path}")
     return 0
 
 
@@ -73,6 +95,10 @@ def _run_rollback(target: Path) -> int:
         for warning in result.warnings:
             print(warning)
         return 1
+    for path in result.deleted_files:
+        print(f"Deleted: {path}")
+    for path in result.restored_files:
+        print(f"Restored: {path}")
     return 0
 
 
