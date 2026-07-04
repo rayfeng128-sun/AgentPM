@@ -220,6 +220,8 @@ def test_rollback_removes_created_files_and_restores_backups(tmp_path: Path) -> 
             "CODEX.md": "create",
         },
     )
+    manifest = json.loads((project_dir / ".agentpm" / "setup-manifest.json").read_text(encoding="utf-8"))
+    backup_path = Path(manifest["modified_file_details"][0]["backup_path"])
 
     rollback_result = rollback_setup(project_dir)
 
@@ -228,6 +230,7 @@ def test_rollback_removes_created_files_and_restores_backups(tmp_path: Path) -> 
     assert existing_agents.read_text(encoding="utf-8") == "# Existing\n"
     assert not (project_dir / "agentpm.yaml").exists()
     assert not (project_dir / "CODEX.md").exists()
+    assert not backup_path.exists()
 
 
 def test_rollback_stops_when_file_changed_after_setup(tmp_path: Path) -> None:

@@ -208,6 +208,7 @@ def rollback_setup(project_path: Path) -> RollbackResult:
             continue
 
         target.write_text(backup_path.read_text(encoding="utf-8"), encoding="utf-8")
+        backup_path.unlink()
         restored_files.append(target)
 
     return RollbackResult(
