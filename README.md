@@ -46,6 +46,28 @@ npm run dev
 
 The frontend expects the backend API at `http://localhost:8000`.
 
+## Bootstrap A Codex Project For AgentPM
+
+From the AgentPM repository:
+
+```bash
+cd backend
+python -m pip install -e ".[test]"
+agentpm-bootstrap --target /absolute/path/to/my-project --project-name "My Project" --dry-run
+agentpm-bootstrap --target /absolute/path/to/my-project --project-name "My Project"
+```
+
+The bootstrap command:
+
+- creates a starter `agentpm.yaml` when it is missing
+- keeps AgentPM operational state under `.agentpm/`
+- asks before changing existing `agentpm.yaml`, `AGENTS.md`, or `CODEX.md`
+- supports rollback with:
+
+```bash
+agentpm-bootstrap --target /absolute/path/to/my-project --rollback
+```
+
 ## Verification
 
 Backend:
