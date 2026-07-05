@@ -47,3 +47,4 @@ Superpowers specs and plans capture generated design and implementation planning
 - [docs/superpowers/specs/2026-07-05-agentpm-structured-data-persistence-design.md](superpowers/specs/2026-07-05-agentpm-structured-data-persistence-design.md)
 - [docs/superpowers/plans/2026-06-27-codex-project-board.md](superpowers/plans/2026-06-27-codex-project-board.md)
 - [docs/superpowers/plans/2026-07-04-agentpm-bootstrap-setup.md](superpowers/plans/2026-07-04-agentpm-bootstrap-setup.md)
+- [docs/superpowers/plans/2026-07-05-agentpm-structured-data-persistence.md](superpowers/plans/2026-07-05-agentpm-structured-data-persistence.md)

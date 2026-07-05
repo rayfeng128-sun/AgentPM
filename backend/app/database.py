@@ -23,4 +23,45 @@ def init_db(conn: sqlite3.Connection) -> None:
         )
         """
     )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS collection_runs (
+            id TEXT PRIMARY KEY,
+            project_id TEXT NOT NULL,
+            started_at TEXT NOT NULL,
+            finished_at TEXT,
+            status TEXT NOT NULL,
+            warnings_json TEXT NOT NULL DEFAULT '[]',
+            snapshot_json TEXT NOT NULL
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE TABLE IF NOT EXISTS structured_tasks (
+            project_id TEXT NOT NULL,
+            task_key TEXT NOT NULL,
+            run_id TEXT NOT NULL,
+            milestone_id TEXT,
+            milestone_title TEXT,
+            title TEXT NOT NULL,
+            status TEXT NOT NULL,
+            token_budget INTEGER,
+            task_json TEXT NOT NULL,
+            PRIMARY KEY (project_id, task_key)
+        )
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_collection_runs_project_started
+        ON collection_runs (project_id, started_at DESC)
+        """
+    )
+    conn.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_structured_tasks_project_run
+        ON structured_tasks (project_id, run_id)
+        """
+    )
     conn.commit()

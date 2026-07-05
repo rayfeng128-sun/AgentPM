@@ -77,10 +77,6 @@ button {
 .token-row,
 .tasks-head,
 .tasks-row,
-.detail-header,
-.detail-header-title,
-.detail-tabs,
-.detail-row,
 .session-card-row,
 .filter-field,
 .banner,
@@ -266,7 +262,6 @@ button {
 .project-card-copy strong,
 .matrix-area strong,
 .tasks-main-cell strong,
-.detail-header h2,
 .activity-item strong {
   display: block;
 }
@@ -375,8 +370,7 @@ button {
 
 .board-title-line h1,
 .panel-header h3,
-.empty-state h2,
-.detail-header h2 {
+.empty-state h2 {
   margin: 0;
 }
 
@@ -445,8 +439,7 @@ button {
 }
 
 .kpi-card,
-.panel,
-.detail-card {
+.panel {
   background: var(--surface);
   border: 1px solid var(--line);
   border-radius: 16px;
@@ -580,8 +573,7 @@ button {
 .roadmap-table,
 .tasks-table,
 .token-list,
-.activity-feed,
-.detail-stack {
+.activity-feed {
   display: grid;
   gap: 10px;
 }
@@ -616,8 +608,7 @@ button {
 .roadmap-row,
 .tasks-row,
 .token-row,
-.activity-item,
-.detail-card {
+.activity-item {
   padding: 12px;
   border: 1px solid var(--line);
   border-radius: 14px;
@@ -635,8 +626,7 @@ button {
 .roadmap-label small,
 .tasks-main-cell small,
 .token-row-copy small,
-.session-card-row span,
-.detail-row span:first-child {
+.session-card-row span {
   color: var(--muted);
   font-size: 12px;
 }
@@ -880,17 +870,18 @@ button {
 .tasks-row {
   display: grid;
   grid-template-columns:
-    minmax(190px, 1.1fr)
-    minmax(260px, 1.2fr)
-    minmax(190px, 1fr)
-    minmax(190px, 1fr)
+    minmax(190px, 1.05fr)
+    minmax(260px, 1.1fr)
+    minmax(220px, 1fr)
+    minmax(220px, 1fr)
+    minmax(240px, 1.08fr)
     minmax(210px, 1fr)
-    minmax(190px, 1fr)
     88px
     74px
     98px
     minmax(120px, 0.8fr);
-  min-width: 1540px;
+  min-width: 1680px;
+  align-items: start;
 }
 
 .tasks-row {
@@ -898,11 +889,20 @@ button {
   background: #fff;
   cursor: pointer;
   text-align: left;
+  padding-top: 14px;
+  padding-bottom: 14px;
 }
 
 .prd-ref-list,
 .task-detail-text {
   min-width: 0;
+}
+
+.task-field-cell {
+  min-width: 0;
+  display: grid;
+  gap: 6px;
+  align-self: start;
 }
 
 .prd-ref-list {
@@ -945,6 +945,48 @@ button {
   overflow: hidden;
 }
 
+.field-state-pill,
+.field-source-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  width: fit-content;
+  min-height: 24px;
+  padding: 0 8px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.field-state-pill.done {
+  background: rgba(22, 163, 74, 0.1);
+  color: var(--green);
+}
+
+.field-state-pill.doing {
+  background: rgba(59, 130, 246, 0.1);
+  color: var(--blue);
+}
+
+.field-state-pill.blocked {
+  background: rgba(239, 68, 68, 0.1);
+  color: var(--red);
+}
+
+.field-state-pill.todo {
+  background: #f2f4f7;
+  color: var(--muted);
+}
+
+.field-source-chip {
+  border: 1px solid var(--line);
+  background: #fff;
+  color: var(--muted);
+  font-size: 10px;
+  text-transform: none;
+  overflow-wrap: anywhere;
+}
+
 .budget-alert {
   color: var(--red);
   font-weight: 600;
@@ -974,19 +1016,6 @@ button {
   color: var(--muted);
   font-size: 12px;
   font-weight: 600;
-}
-
-.detail-drawer {
-  display: grid;
-  gap: 16px;
-  align-self: start;
-  position: sticky;
-  top: 22px;
-  padding: 18px;
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 18px;
-  box-shadow: var(--shadow);
 }
 
 .segmented-control {
@@ -1249,72 +1278,6 @@ button {
 
 .project-modal-actions {
   justify-content: flex-end;
-}
-
-.detail-header {
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.detail-header-title {
-  align-items: center;
-  gap: 10px;
-}
-
-.detail-dot {
-  width: 16px;
-  height: 16px;
-  border-radius: 999px;
-  border: 4px solid rgba(239, 68, 68, 0.2);
-  background: #fff;
-  box-shadow: inset 0 0 0 4px var(--red);
-}
-
-.detail-tabs {
-  gap: 18px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--line);
-}
-
-.detail-tab {
-  border: 0;
-  background: transparent;
-  color: var(--muted);
-  cursor: pointer;
-  padding: 0;
-}
-
-.detail-tab.active {
-  color: var(--ink);
-  font-weight: 700;
-}
-
-.detail-section {
-  display: grid;
-  gap: 10px;
-}
-
-.detail-section h4 {
-  margin: 0;
-  font-size: 12px;
-  text-transform: uppercase;
-}
-
-.detail-card {
-  gap: 12px;
-  background: #fff;
-}
-
-.detail-row {
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-}
-
-.detail-row + .detail-row {
-  padding-top: 10px;
-  border-top: 1px solid var(--line);
 }
 
 .chip-wrap {

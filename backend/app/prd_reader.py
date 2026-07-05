@@ -152,6 +152,13 @@ def derive_scope(anchor: str | None, section_title: str | None, story_block: str
             return section_title.split(":", 1)[1].strip() or section_title
         return section_title
 
+    scope_marker = extract_list_after_marker(lines, "Scope:")
+    if scope_marker:
+        return scope_marker
+    scope_marker = extract_list_after_marker(lines, "Scope")
+    if scope_marker:
+        return scope_marker
+
     section_bullets = extract_named_section_bullets(lines, "Scope")
     if section_bullets:
         return section_bullets
@@ -190,11 +197,17 @@ def extract_acceptance(lines: list[str]) -> str | None:
 
 
 def extract_named_section_bullets(lines: list[str], heading_name: str) -> str | None:
+    normalized_heading = normalize_heading_title(heading_name.rstrip(":"))
     for index, line in enumerate(lines):
-        match = HEADING_RE.match(line.strip())
+        stripped = line.strip()
+        if stripped in {heading_name, f"{heading_name}:"}:
+            bullets = extract_bullets(lines[index + 1 :])
+            return bullets or first_meaningful_paragraph(lines[index + 1 :])
+
+        match = HEADING_RE.match(stripped)
         if not match:
             continue
-        if normalize_heading_title(match.group(2)) != normalize_heading_title(heading_name):
+        if normalize_heading_title(match.group(2)) != normalized_heading:
             continue
         level = len(match.group(1))
         section: list[str] = []

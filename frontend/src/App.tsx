@@ -71,6 +71,51 @@ type ProgressSummary = {
   percent: number | null;
 };
 
+type FieldState = "explicit" | "inferred" | "needs_review" | "missing" | "unavailable";
+
+type StructuredSourceRef = {
+  source_type: string;
+  path_or_id: string | null;
+  locator: string | null;
+};
+
+type StructuredFieldValue = {
+  value: string | null;
+  state: FieldState;
+  source: StructuredSourceRef | null;
+  confidence: number | null;
+};
+
+type StructuredTask = {
+  task_key: string;
+  title: string;
+  status: TaskStatus;
+  milestone_id: string | null;
+  milestone_title: string | null;
+  user_story: StructuredFieldValue;
+  scope: StructuredFieldValue;
+  acceptance_criteria: StructuredFieldValue;
+  verification_method: StructuredFieldValue;
+  prd_refs: string[];
+  codex_sessions: string[];
+  token_budget: number | null;
+  warnings: string[];
+};
+
+type StructuredMilestone = {
+  milestone_id: string;
+  title: string;
+  tasks: StructuredTask[];
+};
+
+type StructuredProjectSnapshot = {
+  project_id: string;
+  collected_at: string;
+  status: string;
+  warnings: string[];
+  milestones: StructuredMilestone[];
+};
+
 type TaskPlanItem = {
   id: string;
   title: string;
@@ -255,6 +300,10 @@ type TaskView = TaskPlanItem &
     task_index: number;
   };
 
+type StructuredTaskView = TaskView & {
+  structured: StructuredTask | null;
+};
+
 type CoverageRow = {
   ref: string;
   required: number;
@@ -402,6 +451,44 @@ function summarizeTaskDetail(value: string | null, limit = 140) {
   const normalized = fallbackText(value).replace(/\s+/g, " ").trim();
   if (normalized === "Not specified" || normalized.length <= limit) return normalized;
   return `${normalized.slice(0, limit - 1).trimEnd()}...`;
+}
+
+function summarizeStructuredField(field: StructuredFieldValue | null | undefined, fallback: string | null, limit = 140) {
+  return summarizeTaskDetail(field?.value ?? fallback, limit);
+}
+
+function fieldStateLabel(state: FieldState) {
+  if (state === "explicit") return "Explicit";
+  if (state === "inferred") return "Inferred";
+  if (state === "needs_review") return "Review";
+  if (state === "unavailable") return "Unavailable";
+  return "Not specified";
+}
+
+function fieldStateTone(state: FieldState) {
+  if (state === "explicit") return "done";
+  if (state === "inferred") return "doing";
+  if (state === "needs_review") return "blocked";
+  if (state === "unavailable") return "todo";
+  return "todo";
+}
+
+function fieldSourceLabel(source: StructuredSourceRef | null) {
+  if (!source) return "";
+  const location = [source.path_or_id, source.locator ? `#${source.locator}` : ""].filter(Boolean).join("");
+  return `${source.source_type}${location ? ` · ${location}` : ""}`;
+}
+
+function taskStructuredField(task: StructuredTaskView, fieldName: "user_story" | "scope" | "acceptance_criteria" | "verification_method") {
+  const structuredField = task.structured?.[fieldName];
+  if (structuredField) return structuredField;
+  const value = task[fieldName];
+  return {
+    value,
+    state: value ? ("inferred" as FieldState) : ("missing" as FieldState),
+    source: null,
+    confidence: null,
+  };
 }
 
 function splitPrdRef(ref: string) {
@@ -578,6 +665,7 @@ export function App() {
   const [hasEditedProjectName, setHasEditedProjectName] = useState(false);
   const [workspaceTab, setWorkspaceTab] = useState<WorkspaceTab>("board");
   const [selectedTaskId, setSelectedTaskId] = useState<string | null>(null);
+  const [structuredState, setStructuredState] = useState<StructuredProjectSnapshot | null>(null);
   const [statusFilter, setStatusFilter] = useState<StatusFilter>("all");
   const [prdFilter, setPrdFilter] = useState<PrdFilter>("all");
   const [tokenFilter, setTokenFilter] = useState<TokenFilter>("all");
@@ -606,10 +694,17 @@ export function App() {
     setLoadingBriefing(true);
     setError(null);
     try {
-      setBriefing(await request<BriefingResponse>(`/api/projects/${projectId}/briefing`));
+      try {
+        setStructuredState(await request<StructuredProjectSnapshot>(`/api/projects/${projectId}/structured-state`));
+      } catch {
+        setStructuredState(null);
+      }
+      const nextBriefing = await request<BriefingResponse>(`/api/projects/${projectId}/briefing`);
+      setBriefing(nextBriefing);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Could not load project dashboard");
       setBriefing(null);
+      setStructuredState(null);
     } finally {
       setLoadingBriefing(false);
     }
@@ -624,6 +719,7 @@ export function App() {
       void loadBriefing(selectedId);
     } else {
       setBriefing(null);
+      setStructuredState(null);
     }
   }, [selectedId]);
 
@@ -632,18 +728,23 @@ export function App() {
     [projects, selectedId],
   );
 
-  const taskViews = useMemo<TaskView[]>(() => {
+  const taskViews = useMemo<StructuredTaskView[]>(() => {
     const milestones = briefing?.task_plan?.milestones ?? [];
     const usageByTaskId = new Map((briefing?.task_token_usage?.tasks ?? []).map((task) => [task.task_id, task]));
+    const structuredByTaskId = new Map(
+      structuredState?.milestones.flatMap((milestone) => milestone.tasks).map((task) => [task.task_key, task]) ?? [],
+    );
     return milestones.flatMap((milestone, milestoneIndex) =>
       milestone.tasks.map((task, taskIndex) => {
         const usage = usageByTaskId.get(task.id);
+        const structured = structuredByTaskId.get(task.id) ?? null;
         return {
           ...task,
           milestone_id: milestone.id,
           milestone_title: milestone.title,
           milestone_index: milestoneIndex,
           task_index: taskIndex,
+          structured,
           total_tokens: usage?.total_tokens ?? (task.codex_sessions.length ? null : 0),
           model_label: usage?.model_label ?? (task.codex_sessions.length ? "Unknown model" : "No model"),
           models: usage?.models ?? [],
@@ -660,7 +761,7 @@ export function App() {
         };
       }),
     );
-  }, [briefing]);
+  }, [briefing, structuredState]);
 
   useEffect(() => {
     if (!taskViews.length) {
@@ -856,7 +957,12 @@ export function App() {
         {!loadingBriefing && selectedProject && briefing ? (
           <ProjectBoard
             briefing={briefing}
-            onRefresh={() => void loadBriefing(briefing.project.id)}
+            onRefresh={async () => {
+              await request<StructuredProjectSnapshot>(`/api/projects/${briefing.project.id}/structured-refresh`, {
+                method: "POST",
+              });
+              await loadBriefing(briefing.project.id);
+            }}
             workspaceTab={workspaceTab}
             onTabChange={setWorkspaceTab}
             selectedTaskId={selectedTaskId}
@@ -1539,7 +1645,7 @@ function TasksTable({
   onSelectTask,
   onOpenPrd,
 }: {
-  tasks: TaskView[];
+  tasks: StructuredTaskView[];
   selectedTaskId: string | null;
   onSelectTask: (taskId: string) => void;
   onOpenPrd: (ref: string) => void;
@@ -1559,56 +1665,78 @@ function TasksTable({
         <span>Budget</span>
         <span>Attention</span>
       </div>
-      {tasks.map((task) => (
-        <div key={task.id} className={task.id === selectedTaskId ? "tasks-row active" : "tasks-row"} onClick={() => onSelectTask(task.id)}>
-          <div className="tasks-main-cell">
-            <strong>{task.title}</strong>
-            <small>{task.id}</small>
-            <small className="task-model-line">{shortenModelList(task)}</small>
+      {tasks.map((task) => {
+        const userStory = taskStructuredField(task, "user_story");
+        const scope = taskStructuredField(task, "scope");
+        const acceptance = taskStructuredField(task, "acceptance_criteria");
+        const verification = taskStructuredField(task, "verification_method");
+        return (
+          <div key={task.id} className={task.id === selectedTaskId ? "tasks-row active" : "tasks-row"} onClick={() => onSelectTask(task.id)}>
+            <div className="tasks-main-cell">
+              <strong>{task.title}</strong>
+              <small>{task.id}</small>
+              <small className="task-model-line">{shortenModelList(task)}</small>
+            </div>
+            <div className="prd-ref-list">
+              {task.prd_refs.length ? (
+                task.prd_refs.map((ref) =>
+                  isLocalMarkdownPrdRef(ref) ? (
+                    <button
+                      key={ref}
+                      type="button"
+                      className="prd-link-chip"
+                      onClick={(event) => {
+                        event.stopPropagation();
+                        onOpenPrd(ref);
+                      }}
+                    >
+                      {ref}
+                    </button>
+                  ) : (
+                    <span key={ref} className="detail-chip">
+                      {ref}
+                    </span>
+                  ),
+                )
+              ) : (
+                <span className="pill danger">Unlinked PRD</span>
+              )}
+            </div>
+            <div className="task-field-cell">
+              <span className="task-detail-text" title={fallbackText(userStory.value)}>
+                {summarizeStructuredField(userStory, task.user_story, 132)}
+              </span>
+              <span className={`field-state-pill ${fieldStateTone(userStory.state)}`}>{fieldStateLabel(userStory.state)}</span>
+              {userStory.source ? <span className="field-source-chip">{fieldSourceLabel(userStory.source)}</span> : null}
+            </div>
+            <div className="task-field-cell">
+              <span className="task-detail-text" title={fallbackText(scope.value)}>
+                {summarizeStructuredField(scope, task.scope, 108)}
+              </span>
+              <span className={`field-state-pill ${fieldStateTone(scope.state)}`}>{fieldStateLabel(scope.state)}</span>
+              {scope.source ? <span className="field-source-chip">{fieldSourceLabel(scope.source)}</span> : null}
+            </div>
+            <div className="task-field-cell">
+              <span className="task-detail-text" title={fallbackText(acceptance.value)}>
+                {summarizeStructuredField(acceptance, task.acceptance_criteria, 132)}
+              </span>
+              <span className={`field-state-pill ${fieldStateTone(acceptance.state)}`}>{fieldStateLabel(acceptance.state)}</span>
+              {acceptance.source ? <span className="field-source-chip">{fieldSourceLabel(acceptance.source)}</span> : null}
+            </div>
+            <div className="task-field-cell">
+              <span className="task-detail-text" title={fallbackText(verification.value)}>
+                {summarizeStructuredField(verification, task.verification_method, 132)}
+              </span>
+              <span className={`field-state-pill ${fieldStateTone(verification.state)}`}>{fieldStateLabel(verification.state)}</span>
+              {verification.source ? <span className="field-source-chip">{fieldSourceLabel(verification.source)}</span> : null}
+            </div>
+            <span className={`pill status ${statusTone(task.status)}`}>{task.status}</span>
+            <span>{compactTokens(task.total_tokens)}</span>
+            <span className={budgetState(task).startsWith("Over") ? "budget-alert" : ""}>{budgetState(task)}</span>
+            <span>{taskAttention(task)[0]}</span>
           </div>
-          <div className="prd-ref-list">
-            {task.prd_refs.length ? (
-              task.prd_refs.map((ref) =>
-                isLocalMarkdownPrdRef(ref) ? (
-                  <button
-                    key={ref}
-                    type="button"
-                    className="prd-link-chip"
-                    onClick={(event) => {
-                      event.stopPropagation();
-                      onOpenPrd(ref);
-                    }}
-                  >
-                    {ref}
-                  </button>
-                ) : (
-                  <span key={ref} className="detail-chip">
-                    {ref}
-                  </span>
-                ),
-              )
-            ) : (
-              <span className="pill danger">Unlinked PRD</span>
-            )}
-          </div>
-          <span className="task-detail-text" title={fallbackText(task.user_story)}>
-            {summarizeTaskDetail(task.user_story, 132)}
-          </span>
-          <span className="task-detail-text" title={fallbackText(task.scope)}>
-            {summarizeTaskDetail(task.scope, 108)}
-          </span>
-          <span className="task-detail-text" title={fallbackText(task.acceptance_criteria)}>
-            {summarizeTaskDetail(task.acceptance_criteria, 132)}
-          </span>
-          <span className="task-detail-text" title={fallbackText(task.verification_method)}>
-            {summarizeTaskDetail(task.verification_method, 132)}
-          </span>
-          <span className={`pill status ${statusTone(task.status)}`}>{task.status}</span>
-          <span>{compactTokens(task.total_tokens)}</span>
-          <span className={budgetState(task).startsWith("Over") ? "budget-alert" : ""}>{budgetState(task)}</span>
-          <span>{taskAttention(task)[0]}</span>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 }

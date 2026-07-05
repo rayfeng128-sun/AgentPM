@@ -19,10 +19,22 @@ from .models import (
 )
 from .plan_parser import build_plan_alerts, calculate_progress
 from .prd_reader import enrich_plan_with_prd_details
+from .structured_models import StructuredProjectSnapshot
+from .structured_service import snapshot_to_plan
 
 
-def build_task_plan(project_id: str, plan: PlanLoadResult, project_path: str) -> TaskPlanResponse:
-    enrich_plan_with_prd_details(project_path, plan)
+def build_task_plan(
+    project_id: str,
+    plan: PlanLoadResult | None,
+    project_path: str,
+    snapshot: StructuredProjectSnapshot | None = None,
+) -> TaskPlanResponse:
+    if snapshot is not None:
+        plan = snapshot_to_plan(snapshot)
+    elif plan is None:
+        plan = PlanLoadResult(milestones=[], missing=True)
+    else:
+        enrich_plan_with_prd_details(project_path, plan)
     return TaskPlanResponse(
         project_id=project_id,
         progress=calculate_progress(plan),
@@ -33,10 +45,15 @@ def build_task_plan(project_id: str, plan: PlanLoadResult, project_path: str) ->
 
 def build_task_token_usage(
     project_id: str,
-    plan: PlanLoadResult,
+    plan: PlanLoadResult | None,
     project_path: str,
     codex_db_path: Path,
+    snapshot: StructuredProjectSnapshot | None = None,
 ) -> TaskTokenUsageResponse:
+    if snapshot is not None:
+        plan = snapshot_to_plan(snapshot)
+    if plan is None:
+        plan = PlanLoadResult(milestones=[], missing=True)
     alerts = build_plan_alerts(plan)
     tasks = [task for milestone in plan.milestones for task in milestone.tasks]
     if plan.missing or plan.invalid:

@@ -19,6 +19,7 @@ Product baseline:
 
 - `docs/product/05-structured-project-data-prd.md`
 - `docs/superpowers/specs/2026-07-05-agentpm-structured-data-persistence-design.md`
+- `docs/superpowers/plans/2026-07-05-agentpm-structured-data-persistence.md`
 
 ## Story Boundary
 

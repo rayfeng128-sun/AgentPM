@@ -12,6 +12,8 @@ from .models import BriefingResponse, CodexSession, DirectoryBrowseResponse, Prd
 from .plan_parser import load_plan
 from .prd_reader import read_project_prd
 from .projects import browse_directories, create_project, delete_project, get_project, list_projects
+from .structured_models import StructuredProjectSnapshot
+from .structured_service import load_project_snapshot, refresh_project_snapshot
 from .task_analytics import build_task_plan, build_task_token_usage
 
 app = FastAPI(title="Codex Project Board")
@@ -109,13 +111,37 @@ def api_get_project(project_id: str) -> Project:
 @app.get("/api/projects/{project_id}/briefing", response_model=BriefingResponse)
 def api_project_briefing(project_id: str) -> BriefingResponse:
     project = api_get_project(project_id)
-    return build_briefing(project, codex_db_path=codex_db_path())
+    return build_briefing(project, codex_db_path=codex_db_path(), app_db_path=app_db_path())
 
 
 @app.get("/api/projects/{project_id}/tasks", response_model=TaskPlanResponse)
 def api_project_tasks(project_id: str) -> TaskPlanResponse:
     project = api_get_project(project_id)
-    return build_task_plan(project.id, load_plan(project.path), project.path)
+    with connect(app_db_path()) as conn:
+        init_db(conn)
+        snapshot = load_project_snapshot(conn, project.id)
+        if snapshot is None:
+            snapshot = refresh_project_snapshot(conn, project)
+    return build_task_plan(project.id, load_plan(project.path), project.path, snapshot=snapshot)
+
+
+@app.get("/api/projects/{project_id}/structured-state", response_model=StructuredProjectSnapshot)
+def api_project_structured_state(project_id: str) -> StructuredProjectSnapshot:
+    project = api_get_project(project_id)
+    with connect(app_db_path()) as conn:
+        init_db(conn)
+        snapshot = load_project_snapshot(conn, project.id)
+        if snapshot is None:
+            snapshot = refresh_project_snapshot(conn, project)
+    return snapshot
+
+
+@app.post("/api/projects/{project_id}/structured-refresh", response_model=StructuredProjectSnapshot)
+def api_refresh_project_structured_state(project_id: str) -> StructuredProjectSnapshot:
+    project = api_get_project(project_id)
+    with connect(app_db_path()) as conn:
+        init_db(conn)
+        return refresh_project_snapshot(conn, project)
 
 
 @app.get("/api/projects/{project_id}/prd", response_model=PrdDocumentResponse)
@@ -127,7 +153,12 @@ def api_project_prd(project_id: str, ref: str) -> PrdDocumentResponse:
 @app.get("/api/projects/{project_id}/task-token-usage", response_model=TaskTokenUsageResponse)
 def api_project_task_token_usage(project_id: str) -> TaskTokenUsageResponse:
     project = api_get_project(project_id)
-    return build_task_token_usage(project.id, load_plan(project.path), project.path, codex_db_path())
+    with connect(app_db_path()) as conn:
+        init_db(conn)
+        snapshot = load_project_snapshot(conn, project.id)
+        if snapshot is None:
+            snapshot = refresh_project_snapshot(conn, project)
+    return build_task_token_usage(project.id, load_plan(project.path), project.path, codex_db_path(), snapshot=snapshot)
 
 
 @app.get("/api/projects/{project_id}/sessions", response_model=list[CodexSession])

@@ -1,15 +1,25 @@
 from pathlib import Path
 
 from .codex_reader import DEFAULT_CODEX_STATE_DB, codex_state_available, read_sessions_by_ids, read_sessions_for_path, summarize_tokens
+from .database import APP_DB, connect, init_db
 from .git_reader import read_git_state
 from .models import BriefingResponse, BriefingText, Project, TestState, TokenSummary
 from .plan_parser import calculate_progress, load_plan
 from .status_rules import build_alerts, calculate_status
 from .task_analytics import build_task_plan, build_task_token_usage
+from .structured_service import load_project_snapshot, snapshot_to_plan
 
 
-def build_briefing(project: Project, codex_db_path: Path = DEFAULT_CODEX_STATE_DB) -> BriefingResponse:
-    plan = load_plan(project.path)
+def build_briefing(
+    project: Project,
+    codex_db_path: Path = DEFAULT_CODEX_STATE_DB,
+    app_db_path: Path = APP_DB,
+) -> BriefingResponse:
+    structured_snapshot = None
+    with connect(app_db_path) as conn:
+        init_db(conn)
+        structured_snapshot = load_project_snapshot(conn, project.id)
+    plan = snapshot_to_plan(structured_snapshot) if structured_snapshot is not None else load_plan(project.path)
     progress = calculate_progress(plan)
     sessions = read_sessions_for_path(project.path, db_path=codex_db_path)
     tokens = token_summary_for_project(project, codex_db_path=codex_db_path, plan=plan, sessions=sessions)
@@ -17,8 +27,8 @@ def build_briefing(project: Project, codex_db_path: Path = DEFAULT_CODEX_STATE_D
     test = TestState(status="unknown", confidence="low")
     status = calculate_status(plan=plan, progress=progress, sessions=sessions, git=git, test=test)
     alerts = build_alerts(plan=plan, progress=progress, sessions=sessions, tokens=tokens, git=git, test=test)
-    task_plan = build_task_plan(project.id, plan, project.path)
-    task_token_usage = build_task_token_usage(project.id, plan, project.path, codex_db_path)
+    task_plan = build_task_plan(project.id, plan, project.path, snapshot=structured_snapshot)
+    task_token_usage = build_task_token_usage(project.id, plan, project.path, codex_db_path, snapshot=structured_snapshot)
     alerts.extend(task_plan.alerts)
     alerts.extend(task_token_usage.alerts)
 
