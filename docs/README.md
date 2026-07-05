@@ -10,6 +10,7 @@ Product documents are the source of truth for user stories, scope, user flows, p
 - [docs/product/02-task-progress-token-analytics-prd.md](product/02-task-progress-token-analytics-prd.md)
 - [docs/product/03-task-progress-token-analytics-prototype.md](product/03-task-progress-token-analytics-prototype.md)
 - [docs/product/04-project-registration-usability-prd.md](product/04-project-registration-usability-prd.md)
+- [docs/product/05-structured-project-data-prd.md](product/05-structured-project-data-prd.md)
 
 Product document naming rule:
 
@@ -43,5 +44,6 @@ Superpowers specs and plans capture generated design and implementation planning
 
 - [docs/superpowers/specs/2026-06-27-codex-project-board-design.md](superpowers/specs/2026-06-27-codex-project-board-design.md)
 - [docs/superpowers/specs/2026-07-04-agentpm-bootstrap-setup-design.md](superpowers/specs/2026-07-04-agentpm-bootstrap-setup-design.md)
+- [docs/superpowers/specs/2026-07-05-agentpm-structured-data-persistence-design.md](superpowers/specs/2026-07-05-agentpm-structured-data-persistence-design.md)
 - [docs/superpowers/plans/2026-06-27-codex-project-board.md](superpowers/plans/2026-06-27-codex-project-board.md)
 - [docs/superpowers/plans/2026-07-04-agentpm-bootstrap-setup.md](superpowers/plans/2026-07-04-agentpm-bootstrap-setup.md)
